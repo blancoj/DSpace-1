@@ -39,6 +39,14 @@ import org.dspace.identifier.service.IdentifierService;
 import org.dspace.utils.DSpace;
 import org.springframework.beans.factory.annotation.Autowired;
 
+
+import org.dspace.core.Constants;
+import org.dspace.eperson.EPerson;
+import java.util.Date;
+import java.util.Iterator;
+import org.dspace.content.service.ItemService;
+
+
 /**
  * Service implementation class for the DSpaceObject.
  * All DSpaceObject service classes should extend this class since it implements some basic methods which all
@@ -67,6 +75,10 @@ public abstract class DSpaceObjectServiceImpl<T extends DSpaceObject> implements
     protected MetadataAuthorityService metadataAuthorityService;
     @Autowired(required = true)
     protected RelationshipService relationshipService;
+
+    @Autowired(required = true)
+    protected ItemService itemService;
+
 
     public DSpaceObjectServiceImpl() {
 
@@ -377,12 +389,38 @@ public abstract class DSpaceObjectServiceImpl<T extends DSpaceObject> implements
     @Override
     public void removeMetadataValues(Context context, T dso, List<MetadataValue> values) throws SQLException {
         Iterator<MetadataValue> metadata = dso.getMetadata().iterator();
+        String prov_value = "";
         while (metadata.hasNext()) {
             MetadataValue metadataValue = metadata.next();
             if (values.contains(metadataValue)) {
                 metadata.remove();
                 metadataValueService.delete(context, metadataValue);
+
+                // UM Change to write provenance for a metadata remove change.
+                if (dso.getType() == Constants.ITEM) {
+                  EPerson e = context.getCurrentUser();
+                  String userName = e.getFullName();
+                  Date date = new Date();  
+                  String timestamp = date.toString();
+
+                  String value_removed = metadataValue.getValue();
+                  MetadataField meta_field = metadataValue.getMetadataField();
+                  String element = meta_field.getElement();
+                  String qualifier = meta_field.getQualifier();
+
+                  String msg="";
+                  msg += " For dc=" + element + "." + qualifier + " this value=> \""  + value_removed + "\" was removed. ";
+                  prov_value += "A request to update metadata was received on " + timestamp + " (GMT) by " + userName  +  msg;
+                }
             }
+        }
+        if ( !prov_value.equals("") )
+        {
+          Item myItem = (Item) dso;
+
+          itemService.addMetadata(context, myItem, "dc",
+                     "description", "provenance", null,
+                     prov_value);
         }
         dso.setMetadataModified();
     }

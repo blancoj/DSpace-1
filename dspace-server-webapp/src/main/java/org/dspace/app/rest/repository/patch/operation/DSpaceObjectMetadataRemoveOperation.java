@@ -27,6 +27,8 @@ import org.springframework.stereotype.Component;
 import org.dspace.core.Constants;
 import org.dspace.eperson.EPerson;
 import java.util.Date;
+import java.util.Iterator;
+import org.apache.log4j.Logger;
 
 /**
  * Class for PATCH REMOVE operations on Dspace Objects' metadata
@@ -44,6 +46,9 @@ import java.util.Date;
  */
 @Component
 public class DSpaceObjectMetadataRemoveOperation<R extends DSpaceObject> extends PatchOperation<R> {
+
+ private static Logger log = Logger.getLogger(DSpaceObjectMetadataRemoveOperation.class);
+
 
     @Autowired
     DSpaceObjectMetadataPatchUtils metadataPatchUtils;
@@ -69,6 +74,10 @@ public class DSpaceObjectMetadataRemoveOperation<R extends DSpaceObject> extends
      */
     private void remove(Context context, DSpaceObject dso, DSpaceObjectService dsoService, MetadataField metadataField,
                         String index) {
+
+log.info("JOSE: remove  ..... here");
+
+
         metadataPatchUtils.checkMetadataFieldNotNull(metadataField);
         try {
             if (index == null) {
@@ -83,24 +92,9 @@ public class DSpaceObjectMetadataRemoveOperation<R extends DSpaceObject> extends
                 int indexInt = Integer.parseInt(index);
                 if (indexInt >= 0 && metadataValues.size() > indexInt
                         && metadataValues.get(indexInt) != null) {
-                    // remove that metadata
+                    // This call will handle creating the provenance entry for the change.
                     dsoService.removeMetadataValues(context, dso,
                             Arrays.asList(metadataValues.get(indexInt)));
-
-                    if (dso.getType() == Constants.ITEM) {
-                       // Add provenance reason when metadata is changed.
-                       EPerson e = context.getCurrentUser();
-                       String userName = e.getFullName();
-                       Date date = new Date();  
-                       String timestamp = date.toString();
-
-                       String msg="";
- //                      msg += " For dc=" + metadataField.getElement() + "." + metadataField.getQualifier() + " this value=> \""  + metadataValues.getValue() + "\" was removed.";
- //                      String prov_value = "A request to update metadata was received on " + timestamp + " (GMT) by " + userName  +  msg;
-
- //                      dsoService.addMetadata(context, dso, metadataField.getMetadataSchema().getName(),
- //                         "description", "provenance", metadataValue.getLanguage(), prov_value, metadataValue.getAuthority(), metadataValue.getConfidence());
-                    }
                 } else {
                     throw new UnprocessableEntityException("UnprocessableEntityException - There is no metadata of " +
                             "this type at that index");
