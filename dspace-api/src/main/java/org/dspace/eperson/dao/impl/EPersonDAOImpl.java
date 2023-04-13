@@ -201,6 +201,28 @@ public class EPersonDAOImpl extends AbstractHibernateDSODAO<EPerson> implements 
     }
 
     @Override
+    public List<EPerson> findProxiesForDepositor(Context context, UUID depositor_id) throws SQLException {
+
+        Query query = createQuery(context, "SELECT e FROM EPerson e  WHERE e.id in (SELECT p.ePerson_proxy from Proxies p WHERE p.ePerson_depositor = :depositor_id)");
+
+        query.setParameter("depositor_id", depositor_id);
+
+        return list(query);
+
+    }
+
+    @Override
+    public List <EPerson> findProxiesForDepositorInCollection(Context context, UUID depositor_id, String collection_handle) throws SQLException {
+
+
+        Query query = createQuery(context,  "SELECT e FROM EPerson e WHERE e.id in (SELECT p.ePerson_proxy FROM Proxies p WHERE p.ePerson_depositor = :depositor_id AND p.handle= :collection_handle)");
+        query.setParameter("depositor_id", depositor_id);
+        query.setParameter("collection_handle", collection_handle);
+
+        return list(query);
+    }
+
+    @Override
     public int countRows(Context context) throws SQLException {
         return count(createQuery(context, "SELECT count(*) FROM EPerson"));
     }

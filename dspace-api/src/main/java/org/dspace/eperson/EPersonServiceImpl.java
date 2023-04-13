@@ -575,6 +575,16 @@ public class EPersonServiceImpl extends DSpaceObjectServiceImpl<EPerson> impleme
     }
 
     @Override
+    public List<EPerson> findProxiesForDepositor(Context context, UUID depositor_id) throws SQLException {
+        return ePersonDAO.findProxiesForDepositor(context, depositor_id);
+    }
+
+    @Override
+    public List <EPerson> findProxiesForDepositorInCollection(Context context, UUID depositor_id, String collection_handle) throws SQLException {
+        return ePersonDAO.findProxiesForDepositorInCollection(context, depositor_id, collection_handle);
+    }
+
+    @Override
     public int countTotal(Context context) throws SQLException {
         return ePersonDAO.countRows(context);
     }

@@ -24,6 +24,13 @@ import org.dspace.identifier.IdentifierException;
 import org.dspace.identifier.service.IdentifierService;
 import org.springframework.beans.factory.annotation.Autowired;
 
+// UM Changes
+import org.dspace.web.ContextUtil;
+import org.dspace.eperson.EPerson;
+import org.dspace.eperson.factory.EPersonServiceFactory;
+import org.dspace.eperson.service.EPersonService;
+import java.util.UUID;
+
 /**
  * Support to install an Item in the archive.
  *
@@ -42,6 +49,12 @@ public class InstallItemServiceImpl implements InstallItemService {
     protected IdentifierService identifierService;
     @Autowired(required = true)
     protected ItemService itemService;
+
+    @Autowired(required = true)
+    protected EPersonService ePersonService;
+
+    /* to support proxies */
+    private static EPerson depositor = null;
 
     protected InstallItemServiceImpl() {
 
@@ -166,6 +179,39 @@ public class InstallItemServiceImpl implements InstallItemService {
                 itemService.addMetadata(c, item, dcv.getMetadataField(), dcv.getLanguage(), dcv.getValue());
             }
         }
+
+        // Start UM Change. In case you have a proxy deposit.
+        java.util.List<MetadataValue> proxylist = itemService.getMetadata(item, "dc", "description", "depositor", Item.ANY);
+        MetadataValue[] proxies = proxylist.toArray(new MetadataValue[proxylist.size()]);
+        if ( proxies.length > 0 )
+        {
+            for (int i = 0; i < proxies.length; i++)
+            {
+                if (!proxies[i].getValue().equals("SELF"))
+                {
+                    depositor = item.getSubmitter();
+
+                    String proxy_id = proxies[i].getValue();
+                    //log.info("PROXY:  putting in prove message proxy_id = " + proxy_id);
+
+                    Context context = ContextUtil.obtainCurrentRequestContext();
+                    EPerson proxyPerson = ePersonService.find(context, UUID.fromString(proxy_id));
+
+                    String Submitter_FullName = item.getSubmitter().getFullName();
+                    String Submitter_Email = item.getSubmitter().getEmail();
+
+                    //Set the submitter to the on behalf person
+                    item.setSubmitter ( proxyPerson );
+
+                    String provmessage = "Submitted by " + Submitter_FullName
+                        + " (" + Submitter_Email + ") on behalf of " + item.getSubmitter().getFullName() + " (" +  item.getSubmitter().getEmail() + ") on " + now + "\n";
+
+                    itemService.addMetadata(c, item, MetadataSchemaEnum.DC.getName(),
+                                "description", "provenance", "en", provmessage);
+                }
+            }
+        }
+        //End UM Change
 
         String provDescription = "Made available in Deep Blue Documents on " + now
             + " (GMT). " + getBitstreamProvenanceMessage(c, item);

@@ -30,6 +30,30 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+// UM Change
+import javax.servlet.http.HttpServletRequest;
+import org.dspace.core.Context;
+import javax.servlet.ServletException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+
+// For UM Changes.
+import org.dspace.core.Constants;
+import org.dspace.eperson.EPerson;
+import java.util.UUID;
+import org.dspace.content.service.CollectionService;
+import org.dspace.content.factory.ContentServiceFactory;
+
+//UM Changes
+import org.dspace.web.ContextUtil;
+import org.dspace.services.RequestService;
+import org.dspace.services.model.Request;
+import org.dspace.utils.DSpace;
+
+
+//import org.apache.log4j.Logger;
+
 /**
  * Submission form generator for DSpace. Reads and parses the installation
  * form definitions file, submission-forms.xml, from the configuration directory.
@@ -53,6 +77,12 @@ import org.xml.sax.SAXException;
  */
 
 public class DCInputsReader {
+
+    private static final Logger log = LoggerFactory.getLogger(DCInputsReader.class);
+
+    private CollectionService collectionService =
+        ContentServiceFactory.getInstance().getCollectionService();
+
     /**
      * The ID of the default collection. Will never be the ID of a named
      * collection
@@ -115,6 +145,7 @@ public class DCInputsReader {
 
     private void buildInputs(String fileName)
         throws DCInputsReaderException {
+
         formDefns = new HashMap<String, List<List<Map<String, String>>>>();
         valuePairs = new HashMap<String, List<String>>();
 
@@ -216,6 +247,7 @@ public class DCInputsReader {
         if (pages == null) {
             throw new DCInputsReaderException("Missing the " + formName + " form");
         }
+
         lastInputSet = new DCInputSet(formName,
                                       pages, valuePairs);
         return lastInputSet;
@@ -538,6 +570,20 @@ public class DCInputsReader {
      */
     private void processValuePairs(Node e)
         throws SAXException {
+
+        // UM Change - needed for mapping and proxy depositor logic.
+        Context c = ContextUtil.obtainCurrentRequestContext();
+        HttpServletRequest request = null;
+
+        RequestService requestService = new DSpace().getRequestService();
+
+        Request currentRequest = requestService.getCurrentRequest();
+        if ( currentRequest != null)
+        {
+          request = currentRequest.getHttpServletRequest();
+        }
+        // End UM Change
+
         NodeList nl = e.getChildNodes();
         int len = nl.getLength();
         for (int i = 0; i < len; i++) {
@@ -554,6 +600,7 @@ public class DCInputsReader {
                     throw new SAXException(errString);
                 }
                 List<String> pairs = new ArrayList<String>();
+
                 valuePairs.put(pairsName, pairs);
                 NodeList cl = nd.getChildNodes();
                 int lench = cl.getLength();
@@ -577,8 +624,83 @@ public class DCInputsReader {
                                 }
                             } // ignore any children that aren't 'display' or 'storage'
                         }
-                        pairs.add(display);
-                        pairs.add(storage);
+
+                        if ( (pairsName.equals("collection_mappings")) && ( ( c != null ) && (request != null) ) ) {
+                        try
+                        {
+                            String pr_collection_id = DSpaceServicesFactory.getInstance().getConfigurationService()
+                                                         .getProperty("pr.collectionid");
+
+                            List<Collection> collections = collectionService.findAuthorizedOptimized(c, Constants.ADD);
+                            for (Collection t : collections) {
+                            String handle = t.getHandle();
+                            if ( handle != null )
+                            {
+                                String name = t.getName();
+                                UUID     id = t.getID();
+                                String the_id = id.toString();
+
+                                if ( !the_id.equals(pr_collection_id) )
+                                {
+                                    pairs.add ( name );
+                                    pairs.add ( the_id );
+                                }
+                            }
+                        }
+
+                        pairs.add ( "None" );
+                        pairs.add ( "-1" );
+                        }
+                        catch (Exception exc)
+                        {
+                            log.info("ERROR but it may be OK, creating collection mapping context is null.");
+                            //Do Nothing
+                        }
+                        }else if ( ( pairsName.startsWith("depositor") ) && ( ( c != null ) && (request != null) ) ) {
+                        try
+                        {
+                            // UM Change.
+                            // Get the collection handle from the configuration.
+                            // This is different from the way we did it in 6.3
+                            // depositor_123456789_6
+                            // 01234567890
+                            String collectionHandle = pairsName.substring(10).replace("_", "/");
+
+                            //Get the eperson
+                            EPerson ePerson = c.getCurrentUser();
+                            UUID userid = ePerson.getID();
+
+                            EPerson[] Proxies = ePerson.getProxies ( c, userid, collectionHandle );
+
+                            String nameMain = ePerson.getFullName();
+                            String emailMain = ePerson.getEmail();
+
+                            String labelMain = nameMain + ", " + emailMain;
+                            pairs.add ( labelMain );
+
+                            //valueList.add ( "SELF" );
+                            pairs.add ( "SELF" );
+                            for (int k = 0; k < Proxies.length; k++)
+                            {
+                                String name = Proxies[k].getFullName();
+                                String email = Proxies[k].getEmail();
+                                UUID id = Proxies[k].getID();
+
+                                String label = name + ", " + email;
+                                pairs.add ( label );
+                                pairs.add ( id.toString() );
+                            }
+
+                        }
+                        catch (Exception exc2 )
+                        {
+                            log.info("ERROR but it may be OK jose, creating the depositor picklist for proxies, request is null");
+                            //Do Nothing
+                        }
+                        }else{
+                            pairs.add(display);
+                            pairs.add(storage);
+                        }
                     } // ignore any children that aren't a 'pair'
                 }
             } // ignore any children that aren't a 'value-pair'
