@@ -75,7 +75,6 @@ import org.dspace.xmlworkflow.storedcomponents.service.XmlWorkflowItemService;
 import org.springframework.beans.factory.annotation.Autowired;
 
 
-
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 
@@ -84,7 +83,6 @@ import org.dspace.content.service.CollectionService;
 import java.util.*;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-
 
 /**
  * When an item is submitted and is somewhere in a workflow, it has a row in the
@@ -142,6 +140,11 @@ public class XmlWorkflowServiceImpl implements XmlWorkflowService {
     protected ConfigurationService configurationService;
     @Autowired(required = true)
     protected XmlWorkflowCuratorService xmlWorkflowCuratorService;
+
+    /* to support proxies */
+    private static EPerson depositor = null;
+    private static EPerson originalDepositor = null;
+
 
     protected XmlWorkflowServiceImpl() {
 
@@ -633,6 +636,9 @@ public class XmlWorkflowServiceImpl implements XmlWorkflowService {
             + wfi.getID() + "item_id=" + item.getID() + "collection_id="
             + collection.getID()));
 
+        // This will be used later in this class in case we have a proxy deposit.
+        originalDepositor = item.getSubmitter();
+
         installItemService.installItem(context, wfi);
 
         ////////  Start UM Changes.
@@ -761,12 +767,12 @@ public class XmlWorkflowServiceImpl implements XmlWorkflowService {
 
         ///////  END of UM changes 
 
-
-
         //Notify
         notifyOfArchive(context, item, collection);
 
         //Clear any remaining workflow metadata
+        itemService.clearMetadata(context, item, MetadataSchemaEnum.DC.getName(), 
+                        "description", "depositor", Item.ANY);
         itemService
             .clearMetadata(context, item, WorkflowRequirementsService.WORKFLOW_SCHEMA, Item.ANY, Item.ANY, Item.ANY);
         itemService.update(context, item);
@@ -814,7 +820,37 @@ public class XmlWorkflowServiceImpl implements XmlWorkflowService {
                     title = titles.iterator().next().getValue();
                 }
 
+                // For Proxie depoist.
+                String SubmitterMsg = "You submitted";
                 email.addRecipient(ep.getEmail());
+
+                // To find out if there was a proxy depositor.
+                java.util.List<MetadataValue> proxylist = itemService.getMetadata(item, "dc", "description", "depositor", Item.ANY);
+                MetadataValue[] proxies = proxylist.toArray(new MetadataValue[proxylist.size()]);
+                if ( proxies.length > 0 )
+                {
+                    for (int i = 0; i < proxies.length; i++)
+                    {
+                        if (!proxies[i].getValue().equals("SELF"))
+                        {
+                            depositor = originalDepositor;
+                        }
+                    }   
+                }   
+                // End of this.
+
+                if ( depositor != null )
+                {
+                    email.addRecipient(depositor.getEmail());
+
+                    SubmitterMsg = depositor.getFullName() + " submitted on behalf of " + ep.getFullName();
+                    depositor = null;
+                }
+                email.addArgument(SubmitterMsg);
+
+
+                // This was commented out for proxy deposits.
+                //email.addRecipient(ep.getEmail());
                 email.addArgument(title);
                 email.addArgument(coll.getName());
                 email.addArgument(handleService.getCanonicalForm(handle));
@@ -1276,6 +1312,7 @@ public class XmlWorkflowServiceImpl implements XmlWorkflowService {
     }
 
     // Create workflow start provenance message
+    //protected void recordStart(Context context, Item myitem, Action action, String provmessage)
     protected void recordStart(Context context, Item myitem, Action action)
         throws SQLException, IOException, AuthorizeException {
         // get date
@@ -1286,8 +1323,8 @@ public class XmlWorkflowServiceImpl implements XmlWorkflowService {
 
         if (myitem.getSubmitter() != null) {
             provmessage = "Submitted by " + myitem.getSubmitter().getFullName()
-                + " (" + myitem.getSubmitter().getEmail() + ") on "
-                + now.toString() + " workflow start=" + action.getProvenanceStartId() + "\n";
+                          + " (" + myitem.getSubmitter().getEmail() + ") on "
+                          + now.toString() + " workflow start=" + action.getProvenanceStartId() + "\n";
         } else {
             // else, null submitter
             provmessage = "Submitted by unknown (probably automated) on"
@@ -1302,6 +1339,7 @@ public class XmlWorkflowServiceImpl implements XmlWorkflowService {
             .addMetadata(context, myitem, MetadataSchemaEnum.DC.getName(),
                          "description", "provenance", "en", provmessage);
         itemService.update(context, myitem);
+
     }
 
     protected void notifyOfReject(Context c, XmlWorkflowItem wi, EPerson e,

@@ -19,6 +19,8 @@ import org.dspace.core.Context;
 import org.dspace.eperson.EPerson;
 import org.dspace.eperson.Group;
 
+import java.util.UUID;
+
 /**
  * Database Access Object interface class for the EPerson object.
  * The implementation of this class is responsible for all database calls for the EPerson object and is autowired by
@@ -48,6 +50,10 @@ public interface EPersonDAO extends DSpaceObjectDAO<EPerson>, DSpaceObjectLegacy
                                  int offset) throws SQLException;
 
     public List<EPerson> findAllSubscribers(Context context) throws SQLException;
+
+    public List<EPerson> findProxiesForDepositor(Context context, UUID depositor_id) throws SQLException;
+
+    public List<EPerson> findProxiesForDepositorInCollection(Context context, UUID depositor_id, String collection_handle) throws SQLException;
 
     int countRows(Context context) throws SQLException;
 }

@@ -13,6 +13,7 @@ import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 import org.dspace.core.Utils;
+
 /**
  * Class representing all DC inputs required for a submission, organized into pages
  *
@@ -20,6 +21,7 @@ import org.dspace.core.Utils;
  */
 
 public class DCInputSet {
+
     /**
      * name of the input set
      */
@@ -158,19 +160,23 @@ public class DCInputSet {
 
     protected boolean doField(DCInput dcf, boolean addTitleAlternative,
                               boolean addPublishedBefore) {
-        String rowName = dcf.getFieldName();
-        if (rowName.equals("dc.title.alternative") && !addTitleAlternative) {
-            return false;
-        }
-        if (rowName.equals("dc.date.issued") && !addPublishedBefore) {
-            return false;
-        }
-        if (rowName.equals("dc.publisher.null") && !addPublishedBefore) {
-            return false;
-        }
-        if (rowName.equals("dc.identifier.citation") && !addPublishedBefore) {
-            return false;
-        }
+        // UM Change - We don't want to make use of this logic.
+        // It removes items from deposit form. If we put things
+        // in deposit form, we want them there.
+
+        // String rowName = dcf.getFieldName();
+        // if (rowName.equals("dc.title.alternative") && !addTitleAlternative) {
+        //     return false;
+        // }
+        // if (rowName.equals("dc.date.issued") && !addPublishedBefore) {
+        //     return false;
+        // }
+        // if (rowName.equals("dc.publisher.null") && !addPublishedBefore) {
+        //     return false;
+        // }
+        // if (rowName.equals("dc.identifier.citation") && !addPublishedBefore) {
+        //     return false;
+        // }
 
         return true;
     }

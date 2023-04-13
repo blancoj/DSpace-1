@@ -33,6 +33,8 @@ import org.dspace.eperson.service.EPersonService;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.hibernate.proxy.HibernateProxyHelper;
 
+// UM Change
+import java.util.UUID;
 /**
  * Class representing an e-person.
  *
@@ -165,6 +167,29 @@ public class EPerson extends DSpaceObject implements DSpaceObjectLegacySupport {
         hash = 89 * hash + (this.getFullName() != null ? this.getFullName().hashCode() : 0);
         return hash;
     }
+
+    // UM Change to get list of proxies.
+    public static EPerson[] getProxies (Context context, UUID depositor_id, String collection_handle) throws SQLException
+    {
+        List<EPerson> proxies = new ArrayList<EPerson>();
+
+        EPersonService ePersonService = EPersonServiceFactory.getInstance().getEPersonService();        
+        if (!collection_handle.equals("NOVALUE") )
+        {
+            proxies = ePersonService.findProxiesForDepositorInCollection(context, depositor_id, collection_handle);
+        }
+        else
+        {
+            proxies = ePersonService.findProxiesForDepositor(context, depositor_id);
+        }
+
+        EPerson[] epersonArray = new EPerson[proxies.size()];
+        epersonArray = (EPerson[]) proxies.toArray(epersonArray);
+
+        return epersonArray;
+
+    }
+    // End UM Change
 
     /**
      * Get the e-person's language

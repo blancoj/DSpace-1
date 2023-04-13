@@ -62,9 +62,9 @@
         <mapping class="org.dspace.content.WorkspaceItem"/>
 
 
-        <!--
-        <mapping class="org.dspace.content.Umrestricted"/>
--->
+         
+        <mapping class="org.dspace.content.Umrestricted"/> 
+        <mapping class="org.dspace.eperson.Proxies"/>
 
 
         <mapping class="org.dspace.eperson.EPerson"/>
