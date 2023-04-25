@@ -310,6 +310,23 @@ public class Item extends DSpaceObject implements DSpaceObjectLegacySupport {
         return matchingBundles;
     }
 
+    // Pass ORIGINAL for NAME
+    public List<String> getFiles(String name) {
+        List<String> matchingBitstreams = new ArrayList<>();
+         // now only keep bundles with matching names
+        List<Bundle> bunds = getBundles();
+        for (Bundle bundle : bunds) {
+            if (name.equals(bundle.getName())) {
+                List<Bitstream> bits = bundle.getBitstreams();
+                for (Bitstream bit : bits) {
+                    matchingBitstreams.add(bit.getName());
+                }   
+            }
+        }
+        return matchingBitstreams;
+    }
+
+
     /**
      * Add a bundle to the item, should not be made public since we don't want to skip business logic
      *
